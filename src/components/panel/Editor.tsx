@@ -32,6 +32,7 @@ interface EditorProps {
   isMaskControlHovered: boolean;
   isStraightenActive: boolean;
   isRotationActive?: boolean;
+  isWaveformDocked: boolean;
   isWaveformVisible: boolean;
   onBackToLibrary(): void;
   onCloseWaveform(): void;
@@ -88,6 +89,7 @@ export default function Editor({
   isMaskControlHovered,
   isStraightenActive,
   isRotationActive,
+  isWaveformDocked,
   isWaveformVisible,
   onBackToLibrary,
   onCloseWaveform,
@@ -698,7 +700,9 @@ export default function Editor({
       )}
     >
       <AnimatePresence>
-        {isWaveformVisible && !isFullScreen && <Waveform waveformData={waveFormData} onClose={onCloseWaveform} />}
+        {isWaveformVisible && !isFullScreen && !isWaveformDocked && (
+          <Waveform waveformData={waveFormData} onClose={onCloseWaveform} docked={false} />
+        )}
       </AnimatePresence>
 
       <div

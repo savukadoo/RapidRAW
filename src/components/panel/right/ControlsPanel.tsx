@@ -7,8 +7,9 @@ import EffectsPanel from '../../adjustments/Effects';
 import CollapsibleSection from '../../ui/CollapsibleSection';
 import { Adjustments, SectionVisibility, INITIAL_ADJUSTMENTS, ADJUSTMENT_SECTIONS } from '../../../utils/adjustments';
 import { useContextMenu } from '../../../context/ContextMenuContext';
-import { OPTION_SEPARATOR, SelectedImage, AppSettings } from '../../ui/AppProperties';
 import { ChannelConfig } from '../../adjustments/Curves';
+import Waveform from '../editor/Waveform';
+import { OPTION_SEPARATOR, SelectedImage, AppSettings, WaveformData } from '../../ui/AppProperties';
 
 interface ControlsPanelOption {
   disabled?: boolean;
@@ -25,11 +26,15 @@ interface ControlsProps {
   handleAutoAdjustments(): void;
   handleLutSelect(path: string): void;
   histogram: ChannelConfig | null;
+  isWaveformDocked: boolean;
+  isWaveformVisible: boolean;
+  onCloseWaveform(): void;
   selectedImage: SelectedImage;
   setAdjustments(updater: (prev: Adjustments) => Adjustments): void;
   setCollapsibleState(state: any): void;
   setCopiedSectionAdjustments(adjustments: any): void;
   theme: string;
+  waveform: WaveformData | null;
   appSettings: AppSettings | null;
   isWbPickerActive?: boolean;
   toggleWbPicker?: () => void;
@@ -43,17 +48,22 @@ export default function Controls({
   handleAutoAdjustments,
   handleLutSelect,
   histogram,
+  isWaveformDocked,
+  isWaveformVisible,
+  onCloseWaveform,
   selectedImage,
   setAdjustments,
   setCollapsibleState,
   setCopiedSectionAdjustments,
   theme,
+  waveform,
   appSettings,
   isWbPickerActive,
   toggleWbPicker,
   onDragStateChange,
 }: ControlsProps) {
   const { showContextMenu } = useContextMenu();
+  const waveFormData: WaveformData = waveform || { blue: [], green: [], height: 0, luma: [], red: [], width: 0 };
 
   const handleToggleVisibility = (sectionName: string) => {
     setAdjustments((prev: Adjustments) => {
@@ -182,6 +192,11 @@ export default function Controls({
         </div>
       </div>
       <div className="flex-grow overflow-y-auto p-4 flex flex-col gap-2">
+        {isWaveformVisible && isWaveformDocked && (
+          <div className="flex-shrink-0">
+            <Waveform waveformData={waveFormData} onClose={onCloseWaveform} docked />
+          </div>
+        )}
         {Object.keys(ADJUSTMENT_SECTIONS).map((sectionName: string) => {
           const SectionComponent: any = {
             basic: BasicAdjustments,

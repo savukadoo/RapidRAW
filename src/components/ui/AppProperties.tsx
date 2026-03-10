@@ -153,6 +153,7 @@ export interface AppSettings {
   linearRawMode?: string;
   enableXmpSync?: boolean;
   createXmpIfMissing?: boolean;
+  dockWaveformInAdjustments?: boolean;
 }
 
 export interface BrushSettings {

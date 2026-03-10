@@ -34,6 +34,7 @@ interface RgbWaveformProps {
 }
 
 interface WaveformProps {
+ docked?: boolean;
   onClose(): void;
   waveformData: WaveformData;
 }
@@ -114,7 +115,7 @@ const RgbWaveformDisplay = ({ redData, greenData, blueData, width, height, maxVa
   return <canvas ref={canvasRef} width={width} height={height} className="absolute inset-0" />;
 };
 
-export default function Waveform({ waveformData, onClose }: WaveformProps) {
+export default function Waveform({ waveformData, onClose, docked = true }: WaveformProps) {
   const [displayMode, setDisplayMode] = useState<DisplayMode>(DisplayMode.Rgb);
   const nodeRef = useRef<any>(null);
 
@@ -134,8 +135,8 @@ export default function Waveform({ waveformData, onClose }: WaveformProps) {
   const inactiveButtonClass = 'text-text-primary hover:bg-bg-tertiary';
 
   return (
-    <Draggable nodeRef={nodeRef} handle=".handle" bounds="parent">
-      <div ref={nodeRef} className="absolute top-20 left-20 z-50">
+    <Draggable nodeRef={nodeRef} handle=".handle" bounds="parent" disabled={docked}>
+      <div ref={nodeRef} className={docked ? 'relative' : 'absolute top-20 left-20 z-50'}>
         <motion.div
           animate={{ opacity: 1, scale: 1 }}
           className="bg-surface/90 backdrop-blur-md border border-text-secondary/10 shadow-xl rounded-lg overflow-hidden"
@@ -145,7 +146,7 @@ export default function Waveform({ waveformData, onClose }: WaveformProps) {
           style={{ transformOrigin: 'top left' }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
         >
-          <div className="handle flex items-center justify-between p-3 cursor-move">
+          <div className={`handle flex items-center justify-between p-3${docked ? '' : ' cursor-move'}`}>
             <div className="flex items-center gap-2">
               <Waves size={16} />
               <Text variant={TextVariants.heading}>Waveform</Text>

@@ -4540,6 +4540,7 @@ function App() {
               isSliderDragging={isSliderDragging}
               isMaskControlHovered={isMaskControlHovered}
               isStraightenActive={isStraightenActive}
+              isWaveformDocked={appSettings?.dockWaveformInAdjustments ?? true}
               isWaveformVisible={isWaveformVisible}
               onBackToLibrary={handleBackToLibrary}
               onCloseWaveform={() => setIsWaveformVisible(false)}
@@ -4665,23 +4666,44 @@ function App() {
                         variants={panelVariants}
                       >
                         {renderedRightPanel === Panel.Adjustments && (
-                          <Controls
-                            adjustments={adjustments}
-                            collapsibleState={collapsibleSectionsState}
-                            copiedSectionAdjustments={copiedSectionAdjustments}
-                            handleAutoAdjustments={handleAutoAdjustments}
-                            histogram={histogram}
-                            selectedImage={selectedImage}
-                            setAdjustments={setAdjustments}
-                            setCollapsibleState={setCollapsibleSectionsState}
-                            setCopiedSectionAdjustments={setCopiedSectionAdjustments}
-                            theme={theme}
-                            handleLutSelect={handleLutSelect}
-                            appSettings={appSettings}
-                            isWbPickerActive={isWbPickerActive}
+                        <Controls
+                          adjustments={adjustments}
+                          collapsibleState={collapsibleSectionsState}
+                          copiedSectionAdjustments={copiedSectionAdjustments}
+                          handleAutoAdjustments={handleAutoAdjustments}
+                          histogram={histogram}
+                          isWaveformDocked={appSettings?.dockWaveformInAdjustments ?? true}
+                          isWaveformVisible={isWaveformVisible}
+                          onCloseWaveform={() => setIsWaveformVisible(false)}
+                          selectedImage={selectedImage}
+                          setAdjustments={setAdjustments}
+                          setCollapsibleState={setCollapsibleSectionsState}
+                          setCopiedSectionAdjustments={setCopiedSectionAdjustments}
+                          theme={theme}
+                          waveform={waveform}
+                          handleLutSelect={handleLutSelect}
+                          appSettings={appSettings}
+                          isWbPickerActive={isWbPickerActive}
                             toggleWbPicker={toggleWbPicker}
                             onDragStateChange={setIsSliderDragging}
                           />
+                          //<Controls
+                           // adjustments={adjustments}
+                           // collapsibleState={collapsibleSectionsState}
+                           // copiedSectionAdjustments={copiedSectionAdjustments}
+                           // handleAutoAdjustments={handleAutoAdjustments}
+                           // histogram={histogram}
+                           // selectedImage={selectedImage}
+                           // setAdjustments={setAdjustments}
+                           // setCollapsibleState={setCollapsibleSectionsState}
+                            //setCopiedSectionAdjustments={setCopiedSectionAdjustments}
+                          //  theme={theme}
+                          //  handleLutSelect={handleLutSelect}
+                          //  appSettings={appSettings}
+                          //  isWbPickerActive={isWbPickerActive}
+                          //  toggleWbPicker={toggleWbPicker}
+                          //  onDragStateChange={setIsSliderDragging}
+                          ///>
                         )}
                         {renderedRightPanel === Panel.Metadata && (
                           <MetadataPanel
