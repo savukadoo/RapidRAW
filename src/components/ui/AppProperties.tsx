@@ -2,7 +2,7 @@ import { ExportPreset } from './ExportImportProperties';
 import { Adjustments } from '../../utils/adjustments';
 import { ToolType } from '../panel/right/Masks';
 
-export const GLOBAL_KEYS = [' ', 'ArrowUp', 'ArrowDown', 'f', 'b', 'w'];
+export const GLOBAL_KEYS = [' ', 'ArrowUp', 'ArrowDown', 'f', 'b'];
 export const OPTION_SEPARATOR = 'separator';
 
 export enum Invokes {
@@ -153,7 +153,6 @@ export interface AppSettings {
   linearRawMode?: string;
   enableXmpSync?: boolean;
   createXmpIfMissing?: boolean;
-  dockWaveformInAdjustments?: boolean;
 }
 
 export interface BrushSettings {

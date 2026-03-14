@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import Draggable from 'react-draggable';
 import { X, Waves } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { WaveformData } from '../../ui/AppProperties';
@@ -34,8 +33,6 @@ interface RgbWaveformProps {
 }
 
 interface WaveformProps {
- docked?: boolean;
-  onClose(): void;
   waveformData: WaveformData;
 }
 
@@ -115,9 +112,8 @@ const RgbWaveformDisplay = ({ redData, greenData, blueData, width, height, maxVa
   return <canvas ref={canvasRef} width={width} height={height} className="absolute inset-0" />;
 };
 
-export default function Waveform({ waveformData, onClose, docked = true }: WaveformProps) {
+export default function Waveform({ waveformData }: WaveformProps) {
   const [displayMode, setDisplayMode] = useState<DisplayMode>(DisplayMode.Rgb);
-  const nodeRef = useRef<any>(null);
 
   const { red, green, blue, luma, width, height } = waveformData || {};
 
@@ -135,8 +131,7 @@ export default function Waveform({ waveformData, onClose, docked = true }: Wavef
   const inactiveButtonClass = 'text-text-primary hover:bg-bg-tertiary';
 
   return (
-    <Draggable nodeRef={nodeRef} handle=".handle" bounds="parent" disabled={docked}>
-      <div ref={nodeRef} className={docked ? 'relative' : 'absolute top-20 left-20 z-50'}>
+    <div className="relative">
         <motion.div
           animate={{ opacity: 1, scale: 1 }}
           className="bg-surface/90 backdrop-blur-md border border-text-secondary/10 shadow-xl rounded-lg overflow-hidden"
@@ -146,18 +141,6 @@ export default function Waveform({ waveformData, onClose, docked = true }: Wavef
           style={{ transformOrigin: 'top left' }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
         >
-          <div className={`handle flex items-center justify-between p-3${docked ? '' : ' cursor-move'}`}>
-            <div className="flex items-center gap-2">
-              <Waves size={16} />
-              <Text variant={TextVariants.heading}>Waveform</Text>
-            </div>
-            <button
-              className="p-1 rounded-lg text-text-secondary hover:bg-bg-primary hover:text-text-primary transition-colors"
-              onClick={onClose}
-            >
-              <X size={16} />
-            </button>
-          </div>
           {waveformData && (
             <div className="p-2 pt-0">
               <div className="relative w-[256px] h-[256px] bg-black/50 rounded">
@@ -254,6 +237,5 @@ export default function Waveform({ waveformData, onClose, docked = true }: Wavef
           )}
         </motion.div>
       </div>
-    </Draggable>
   );
 }

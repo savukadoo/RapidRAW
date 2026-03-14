@@ -275,7 +275,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [histogram, setHistogram] = useState<ChannelConfig | null>(null);
   const [waveform, setWaveform] = useState<WaveformData | null>(null);
-  const [isWaveformVisible, setIsWaveformVisible] = useState(false);
+  const [isWaveformVisible, setIsWaveformVisible] = useState(true);
   const [uiVisibility, setUiVisibility] = useState<UiVisibility>({
     folderTree: true,
     filmstrip: true,
@@ -1482,9 +1482,9 @@ function App() {
     }
   }, [uiVisibility, appSettings, handleSettingsChange]);
 
-  const handleToggleWaveform = useCallback(() => {
-    setIsWaveformVisible((prev: boolean) => !prev);
-  }, []);
+  //const handleToggleWaveform = useCallback(() => {
+//    setIsWaveformVisible((prev: boolean) => !prev);
+ // }, []);
 
   useEffect(() => {
     if (isInitialMount.current || !appSettings) {
@@ -4540,10 +4540,7 @@ function App() {
               isSliderDragging={isSliderDragging}
               isMaskControlHovered={isMaskControlHovered}
               isStraightenActive={isStraightenActive}
-              isWaveformDocked={appSettings?.dockWaveformInAdjustments ?? true}
-              isWaveformVisible={isWaveformVisible}
               onBackToLibrary={handleBackToLibrary}
-              onCloseWaveform={() => setIsWaveformVisible(false)}
               onContextMenu={handleEditorContextMenu}
               onGenerateAiMask={handleGenerateAiMask}
               onQuickErase={handleQuickErase}
@@ -4552,7 +4549,6 @@ function App() {
               onSelectMask={setActiveMaskId}
               onStraighten={handleStraighten}
               onToggleFullScreen={handleToggleFullScreen}
-              onToggleWaveform={handleToggleWaveform}
               onUndo={undo}
               onZoomed={handleUserTransform}
               renderedRightPanel={renderedRightPanel}
@@ -4568,7 +4564,6 @@ function App() {
               transformedOriginalUrl={transformedOriginalUrl}
               uncroppedAdjustedPreviewUrl={uncroppedAdjustedPreviewUrl}
               updateSubMask={updateSubMask}
-              waveform={waveform}
               onDisplaySizeChange={handleDisplaySizeChange}
               onInitialFitScale={setInitialFitScale}
               onZoomChange={handleZoomChange}
@@ -4672,9 +4667,6 @@ function App() {
                           copiedSectionAdjustments={copiedSectionAdjustments}
                           handleAutoAdjustments={handleAutoAdjustments}
                           histogram={histogram}
-                          isWaveformDocked={appSettings?.dockWaveformInAdjustments ?? true}
-                          isWaveformVisible={isWaveformVisible}
-                          onCloseWaveform={() => setIsWaveformVisible(false)}
                           selectedImage={selectedImage}
                           setAdjustments={setAdjustments}
                           setCollapsibleState={setCollapsibleSectionsState}
@@ -4684,26 +4676,9 @@ function App() {
                           handleLutSelect={handleLutSelect}
                           appSettings={appSettings}
                           isWbPickerActive={isWbPickerActive}
-                            toggleWbPicker={toggleWbPicker}
-                            onDragStateChange={setIsSliderDragging}
+                          toggleWbPicker={toggleWbPicker}
+                          onDragStateChange={setIsSliderDragging}
                           />
-                          //<Controls
-                           // adjustments={adjustments}
-                           // collapsibleState={collapsibleSectionsState}
-                           // copiedSectionAdjustments={copiedSectionAdjustments}
-                           // handleAutoAdjustments={handleAutoAdjustments}
-                           // histogram={histogram}
-                           // selectedImage={selectedImage}
-                           // setAdjustments={setAdjustments}
-                           // setCollapsibleState={setCollapsibleSectionsState}
-                            //setCopiedSectionAdjustments={setCopiedSectionAdjustments}
-                          //  theme={theme}
-                          //  handleLutSelect={handleLutSelect}
-                          //  appSettings={appSettings}
-                          //  isWbPickerActive={isWbPickerActive}
-                          //  toggleWbPicker={toggleWbPicker}
-                          //  onDragStateChange={setIsSliderDragging}
-                          ///>
                         )}
                         {renderedRightPanel === Panel.Metadata && (
                           <MetadataPanel

@@ -1,5 +1,5 @@
 import { memo, useState, useEffect, useRef, useMemo } from 'react';
-import { Eye, EyeOff, ArrowLeft, Maximize, Loader2, Undo, Redo, Waves } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Maximize, Loader2, Undo, Redo } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { SelectedImage } from '../../ui/AppProperties';
@@ -10,13 +10,11 @@ import { TextColors, TextVariants, TextWeights } from '../../../types/typography
 interface EditorToolbarProps {
   canRedo: boolean;
   canUndo: boolean;
-  isWaveformVisible: boolean;
   isLoading: boolean;
   onBackToLibrary(): void;
   onRedo(): void;
   onToggleFullScreen(): void;
   onToggleShowOriginal(): void;
-  onToggleWaveform(): void;
   onUndo(): void;
   selectedImage: SelectedImage;
   showOriginal: boolean;
@@ -32,12 +30,10 @@ const EditorToolbar = memo(
     canRedo,
     canUndo,
     isLoading,
-    isWaveformVisible,
     onBackToLibrary,
     onRedo,
     onToggleFullScreen,
     onToggleShowOriginal,
-    onToggleWaveform,
     onUndo,
     selectedImage,
     showOriginal,
@@ -601,19 +597,6 @@ const EditorToolbar = memo(
               )}
             </AnimatePresence>
           </div>
-
-          <button
-            className={clsx(
-              'p-2 rounded-full transition-colors',
-              isWaveformVisible
-                ? 'bg-accent text-button-text hover:bg-accent/90 hover:text-button-text'
-                : 'bg-surface hover:bg-card-active text-text-primary',
-            )}
-            onClick={onToggleWaveform}
-            data-tooltip="Toggle Waveform (W)"
-          >
-            <Waves size={20} />
-          </button>
 
           <button
             className={clsx(

@@ -26,7 +26,6 @@ interface ControlsProps {
   handleAutoAdjustments(): void;
   handleLutSelect(path: string): void;
   histogram: ChannelConfig | null;
-  isWaveformDocked: boolean;
   isWaveformVisible: boolean;
   onCloseWaveform(): void;
   selectedImage: SelectedImage;
@@ -48,7 +47,6 @@ export default function Controls({
   handleAutoAdjustments,
   handleLutSelect,
   histogram,
-  isWaveformDocked,
   isWaveformVisible,
   onCloseWaveform,
   selectedImage,
@@ -192,11 +190,9 @@ export default function Controls({
         </div>
       </div>
       <div className="flex-grow overflow-y-auto p-4 flex flex-col gap-2">
-        {isWaveformVisible && isWaveformDocked && (
           <div className="flex-shrink-0">
-            <Waveform waveformData={waveFormData} onClose={onCloseWaveform} docked />
+            <Waveform waveformData={waveFormData} onClose={() => {}} docked />
           </div>
-        )}
         {Object.keys(ADJUSTMENT_SECTIONS).map((sectionName: string) => {
           const SectionComponent: any = {
             basic: BasicAdjustments,

@@ -775,18 +775,6 @@ export default function SettingsPanel({
                     </SettingItem>
 
                     <SettingItem
-                      label="Waveform Docking"
-                      description="Dock the waveform inside the Adjustments panel instead of floating over the image."
-                    >
-                      <Switch
-                        checked={appSettings?.dockWaveformInAdjustments ?? true}
-                        id="dock-waveform-toggle"
-                        label="Dock Waveform"
-                        onChange={(checked) => onSettingsChange({ ...appSettings, dockWaveformInAdjustments: checked })}
-                      />
-                    </SettingItem>
-
-                    <SettingItem
                       label="EXIF Library Sorting"
                       description="Read EXIF data (ISO, aperture, etc.) on folder load at the cost of slower folder loading when using EXIF sorting."
                     >
@@ -1704,7 +1692,6 @@ export default function SettingsPanel({
                         <KeybindItem keys={['K']} description="Toggle AI panel" />
                         <KeybindItem keys={['P']} description="Toggle Presets panel" />
                         <KeybindItem keys={['I']} description="Toggle Metadata panel" />
-                        <KeybindItem keys={['W']} description="Toggle Waveform display" />
                         <KeybindItem keys={['E']} description="Toggle Export panel" />
                       </div>
                     </div>

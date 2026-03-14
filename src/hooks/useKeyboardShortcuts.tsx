@@ -38,7 +38,6 @@ interface KeyboardShortcutsProps {
   setActiveMaskId(id: string | null): void;
   setCopiedFilePaths(paths: Array<string>): void;
   setIsStraightenActive(active: any): void;
-  setIsWaveformVisible(visible: any): void;
   setLibraryActivePath(path: string): void;
   setMultiSelectedPaths(paths: Array<string>): void;
   setShowOriginal(show: any): void;
@@ -87,7 +86,6 @@ export const useKeyboardShortcuts = ({
   setActiveMaskId,
   setCopiedFilePaths,
   setIsStraightenActive,
-  setIsWaveformVisible,
   setLibraryActivePath,
   setMultiSelectedPaths,
   setShowOriginal,
@@ -217,10 +215,6 @@ export const useKeyboardShortcuts = ({
         if (key === 'e' && !isCtrl) {
           event.preventDefault();
           handleRightPanelSelect(Panel.Export);
-        }
-        if (key === 'w' && !isCtrl) {
-          event.preventDefault();
-          setIsWaveformVisible((prev: boolean) => !prev);
         }
       } else {
         if ((key === 'enter' || key === ' ') && !isCtrl) {
@@ -435,7 +429,6 @@ export const useKeyboardShortcuts = ({
     setActiveMaskId,
     setCopiedFilePaths,
     setIsStraightenActive,
-    setIsWaveformVisible,
     setLibraryActivePath,
     setMultiSelectedPaths,
     setShowOriginal,
