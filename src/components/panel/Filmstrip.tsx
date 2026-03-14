@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo, forwardRef } from 'react';
-import { Image as ImageIcon, Star } from 'lucide-react';
+import { Image as ImageIcon, Star, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { Grid, useGridCallbackRef } from 'react-window';
@@ -67,6 +67,7 @@ const FilmstripThumbnail = memo(
     const isInitialLoad = useRef(true);
 
     const { path, tags } = imageFile;
+    const isEdited = imageFile.is_edited;
     const rating = imageRatings?.[path] || 0;
     const colorTag = tags?.find((t: string) => t.startsWith('color:'))?.substring(6);
     const colorLabel = COLOR_LABELS.find((c: Color) => c.name === colorTag);
@@ -207,6 +208,15 @@ const FilmstripThumbnail = memo(
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-surface">
             <ImageIcon size={24} className="text-text-secondary animate-pulse" />
+          </div>
+        )}
+
+        {isEdited && (
+          <div
+            className="absolute top-1 left-1 bg-black/70 rounded-full p-1 z-10"
+            data-tooltip="Edited"
+          >
+            <Pencil size={10} className="text-white" />
           </div>
         )}
 

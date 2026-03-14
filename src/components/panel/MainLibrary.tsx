@@ -18,6 +18,7 @@ import {
   Search,
   Users,
   X,
+  Pencil,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { List, useListCallbackRef } from 'react-window';
@@ -143,6 +144,7 @@ interface ThumbnailProps {
   rating: number;
   tags: Array<string>;
   aspectRatio: ThumbnailAspectRatio;
+  isEdited: boolean;
 }
 
 interface ThumbnailSizeOption {
@@ -893,6 +895,7 @@ function Thumbnail({
   rating,
   tags,
   aspectRatio: thumbnailAspectRatio,
+  isEdited,
 }: ThumbnailProps) {
   const [showPlaceholder, setShowPlaceholder] = useState(false);
   const [layers, setLayers] = useState<ImageLayer[]>([]);
@@ -1023,6 +1026,15 @@ function Thumbnail({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {isEdited && (
+        <div
+          className="absolute top-1.5 left-1.5 bg-bg-primary/60 rounded-full p-1 backdrop-blur-sm z-50"
+          data-tooltip="Edited"
+        >
+          <Pencil size={12} className="text-text-primary" />
+        </div>
+      )}
 
       {(colorLabel || rating > 0) && (
         <div className="absolute top-1.5 right-1.5 bg-bg-primary/50 rounded-full px-1.5 py-0.5 flex items-center gap-1 backdrop-blur-sm">
@@ -1158,6 +1170,7 @@ const Row = ({
             rating={imageRatings?.[imageFile.path] || 0}
             tags={imageFile.tags}
             aspectRatio={thumbnailAspectRatio}
+            isEdited={imageFile.is_edited}
           />
         </div>
       ))}
