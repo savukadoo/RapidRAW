@@ -55,10 +55,15 @@
   .slider-input.slider-thumb-active::-moz-range-thumb {
     @apply scale-110;
   }
-}
+
+  .slider-track-active {
+    background-color: rgb(var(--color-accent) / 0.35);
+  }
 
 @layer utilities {
   .text-shadow-shiny {
     text-shadow: 0 0 18px rgba(255, 255, 255, 0.35);
   }
+}
+
 }

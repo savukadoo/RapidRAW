@@ -221,7 +221,15 @@ const Slider = ({
   const stepStr = String(step);
   const decimalPlaces = stepStr.includes('.') ? stepStr.split('.')[1].length : 0;
   const numericValue = isNaN(Number(value)) ? 0 : Number(value);
-
+  const range = max - min;
+  const safeRange = range === 0 ? 1 : range;
+  const clampedDefault = Math.max(min, Math.min(max, defaultValue));
+  const clampedDisplay = Math.max(min, Math.min(max, displayValue));
+  const defaultPercent = ((clampedDefault - min) / safeRange) * 100;
+  const valuePercent = ((clampedDisplay - min) / safeRange) * 100;
+  const activeStart = Math.min(defaultPercent, valuePercent);
+  const activeEnd = Math.max(defaultPercent, valuePercent);
+  const showActive = Math.abs(clampedDisplay - clampedDefault) > 1e-6;
   return (
     <div className="mb-2 group" ref={containerRef}>
       <div className="flex justify-between items-center mb-1">
@@ -281,10 +289,16 @@ const Slider = ({
 
       <div className="relative w-full h-5">
         <div
-          className={`absolute top-1/2 left-0 w-full h-1.5 -translate-y-1/4 rounded-full pointer-events-none ${
+          className={`absolute top-1/2 left-0 w-full h-1.5 -translate-y-1/4 rounded-full pointer-events-none z-0 ${
             trackClassName || 'bg-card-active'
           }`}
         />
+{showActive && (
+          <div
+            className="absolute top-1/2 h-1.5 -translate-y-1/4 rounded-full slider-track-active pointer-events-none transition-all duration-150 ease-out z-[1]"
+            style={{ left: `${activeStart}%`, width: `${activeEnd - activeStart}%` }}
+          />
+        )}
         <input
           className={`absolute top-1/2 left-0 w-full h-1.5 appearance-none bg-transparent cursor-pointer m-0 p-0 slider-input z-10 ${
             isDragging ? 'slider-thumb-active' : ''
