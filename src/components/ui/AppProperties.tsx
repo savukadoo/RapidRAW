@@ -40,6 +40,7 @@ export enum Invokes {
   GenerateThumbnailsProgressive = 'generate_thumbnails_progressive',
   GenerateUncroppedPreview = 'generate_uncropped_preview',
   GenerateWaveform = 'image_processing::generate_waveform',
+  GetImageEditState = 'get_image_edit_state',
   GetFolderTree = 'get_folder_tree',
   GetLogFilePath = 'get_log_file_path',
   GetPinnedFolderTrees = 'get_pinned_folder_trees',

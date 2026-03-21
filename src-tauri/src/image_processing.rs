@@ -962,7 +962,7 @@ pub struct AutoAdjustmentResults {
     pub centre: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Pod, Zeroable, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Pod, Zeroable, Default)]
 #[repr(C)]
 pub struct Point {
     x: f32,
@@ -971,7 +971,7 @@ pub struct Point {
     _pad2: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Pod, Zeroable, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Pod, Zeroable, Default)]
 #[repr(C)]
 pub struct HslColor {
     hue: f32,
@@ -980,7 +980,7 @@ pub struct HslColor {
     _pad: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Pod, Zeroable, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Pod, Zeroable, Default)]
 #[repr(C)]
 pub struct ColorGradeSettings {
     pub hue: f32,
@@ -989,7 +989,7 @@ pub struct ColorGradeSettings {
     _pad: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Pod, Zeroable, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Pod, Zeroable, Default)]
 #[repr(C)]
 pub struct ColorCalibrationSettings {
     pub shadows_tint: f32,
@@ -1002,7 +1002,7 @@ pub struct ColorCalibrationSettings {
     _pad1: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Pod, Zeroable)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct GpuMat3 {
     col0: [f32; 4],
@@ -1020,7 +1020,7 @@ impl Default for GpuMat3 {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Pod, Zeroable, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Pod, Zeroable, Default)]
 #[repr(C)]
 pub struct GlobalAdjustments {
     pub exposure: f32,
@@ -1105,7 +1105,7 @@ pub struct GlobalAdjustments {
     _pad_creative_1: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Pod, Zeroable, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Pod, Zeroable, Default)]
 #[repr(C)]
 pub struct MaskAdjustments {
     pub exposure: f32,
@@ -1158,7 +1158,7 @@ pub struct MaskAdjustments {
     _pad_end7: f32,
 }
 
-#[derive(Debug, Clone, Copy, Pod, Zeroable, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable, Default)]
 #[repr(C)]
 pub struct AllAdjustments {
     pub global: GlobalAdjustments,

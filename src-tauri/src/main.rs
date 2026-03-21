@@ -160,6 +160,7 @@ pub struct AppState {
     pub lens_db: Mutex<Option<lens_correction::LensDatabase>>,
     pub load_image_generation: Arc<AtomicUsize>,
     pub full_warped_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
+    pub metadata_write_generations: Mutex<HashMap<String, u64>>,
 }
 
 #[derive(serde::Serialize)]
@@ -4309,6 +4310,7 @@ fn main() {
             lens_db: Mutex::new(None),
             load_image_generation: Arc::new(AtomicUsize::new(0)),
             full_warped_cache: Mutex::new(None),
+            metadata_write_generations: Mutex::new(HashMap::new()),
         })
         .invoke_handler(tauri::generate_handler![
             load_image,
@@ -4354,6 +4356,7 @@ fn main() {
             file_management::read_exif_for_paths,
             file_management::list_images_in_dir,
             file_management::list_images_recursive,
+            file_management::get_image_edit_state,
             file_management::get_folder_tree,
             file_management::get_pinned_folder_trees,
             file_management::generate_thumbnails,

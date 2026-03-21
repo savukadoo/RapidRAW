@@ -82,6 +82,7 @@ import {
   COPYABLE_ADJUSTMENT_KEYS,
   INITIAL_ADJUSTMENTS,
   MaskContainer,
+  isMeaningfullyEdited,
   normalizeLoadedAdjustments,
   PasteMode,
   CopyPasteSettings,
@@ -309,6 +310,8 @@ function App() {
   const [overlayRotation, setOverlayRotation] = useState(0);
   const [transformedOriginalUrl, setTransformedOriginalUrl] = useState<string | null>(null);
   const patchesSentToBackend = useRef<Set<string>>(new Set());
+  const userInitiatedAdjustmentChangeRef = useRef(false);
+  const autoSaveGenerationRef = useRef(0);
 
   const handleDisplaySizeChange = useCallback(
     (
@@ -520,6 +523,7 @@ function App() {
 
   const setAdjustments = useCallback(
     (value: any) => {
+      userInitiatedAdjustmentChangeRef.current = true;
       setLiveAdjustments((prevAdjustments: Adjustments) => {
         const newAdjustments = typeof value === 'function' ? value(prevAdjustments) : value;
         debouncedSetHistory(newAdjustments);
@@ -582,12 +586,14 @@ function App() {
 
   const undo = useCallback(() => {
     if (canUndo) {
+      userInitiatedAdjustmentChangeRef.current = true;
       undoAdjustments();
       debouncedSetHistory.cancel();
     }
   }, [canUndo, undoAdjustments, debouncedSetHistory]);
   const redo = useCallback(() => {
     if (canRedo) {
+      userInitiatedAdjustmentChangeRef.current = true;
       redoAdjustments();
       debouncedSetHistory.cancel();
     }
@@ -1364,14 +1370,34 @@ function App() {
     }
   }, [adjustments, activeRightPanel, selectedImage?.isReady, generateUncroppedPreview]);
 
+  const syncImageEditedState = useCallback(async (path: string) => {
+    try {
+      const isEdited: boolean = await invoke(Invokes.GetImageEditState, { path });
+      setImageList((prevList) =>
+        prevList.map((image) => (image.path === path ? { ...image, is_edited: isEdited } : image)),
+      );
+      return isEdited;
+    } catch (err) {
+      console.error('Failed to sync image edit state:', err);
+      return null;
+    }
+  }, []);
+
   const debouncedSave = useCallback(
-    debounce((path, adjustmentsToSave) => {
-      invoke(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: adjustmentsToSave }).catch((err) => {
-        console.error('Auto-save failed:', err);
-        setError(`Failed to save changes: ${err}`);
-      });
+    debounce((path, adjustmentsToSave, generation) => {
+      if (generation !== autoSaveGenerationRef.current) {
+        return;
+      }
+      invoke(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: adjustmentsToSave, generation })
+        .then(() => {
+          void syncImageEditedState(path);
+        })
+        .catch((err) => {
+          console.error('Auto-save failed:', err);
+          setError(`Failed to save changes: ${err}`);
+        });
     }, 300),
-    [],
+    [autoSaveGenerationRef, syncImageEditedState],
   );
 
   const createResizeHandler = (setter: any, startSize: number) => (e: any) => {
@@ -1899,7 +1925,8 @@ function App() {
             return newFile;
           }
           const existing = prevMap.get(newFile.path);
-          if (existing && existing.modified === newFile.modified) {
+          const tagsMatch = JSON.stringify(existing?.tags ?? null) === JSON.stringify(newFile.tags ?? null);
+          if (existing && existing.modified === newFile.modified && existing.is_edited === newFile.is_edited && tagsMatch) {
             return existing;
           }
 
@@ -1969,6 +1996,9 @@ function App() {
 
   const handleBackToLibrary = useCallback(() => {
     const lastActivePath = selectedImage?.path ?? null;
+    debouncedSave.cancel();
+    userInitiatedAdjustmentChangeRef.current = false;
+    autoSaveGenerationRef.current += 1;
     setSelectedImage(null);
     setFinalPreviewUrl(null);
     setUncroppedAdjustedPreviewUrl(null);
@@ -1984,7 +2014,7 @@ function App() {
     setSlideDirection(1);
     setLiveAdjustments(INITIAL_ADJUSTMENTS);
     resetAdjustmentsHistory(INITIAL_ADJUSTMENTS);
-  }, [selectedImage?.path]);
+  }, [selectedImage?.path, debouncedSave]);
 
   const handleImageSelect = useCallback(
     (path: string) => {
@@ -1993,6 +2023,8 @@ function App() {
       }
       debouncedSave.cancel();
       patchesSentToBackend.current.clear();
+      userInitiatedAdjustmentChangeRef.current = false;
+      autoSaveGenerationRef.current += 1;
 
       setSelectedImage({
         exif: null,
@@ -2489,6 +2521,20 @@ function App() {
       clearTimeout(dragIdleTimer.current);
     }
 
+    const allowAutoSave = userInitiatedAdjustmentChangeRef.current;
+    const saveGeneration = autoSaveGenerationRef.current;
+    if (allowAutoSave) {
+      const nextIsEdited = isMeaningfullyEdited(adjustments);
+      const affectedPaths = new Set([
+        selectedImage.path,
+        ...multiSelectedPaths.filter((path) => path !== selectedImage.path),
+      ]);
+
+      setImageList((prevList) =>
+        prevList.map((image) => (affectedPaths.has(image.path) ? { ...image, is_edited: nextIsEdited } : image)),
+      );
+    }
+
     const targetRes = calculateTargetRes();
 
     if (isSliderDragging) {
@@ -2504,22 +2550,24 @@ function App() {
       dragIdleTimer.current = setTimeout(() => {
         currentResRef.current = targetRes;
         applyAdjustments(adjustments, false, targetRes);
-        debouncedSave(selectedImage.path, adjustments);
+        if (allowAutoSave) {
+          debouncedSave(selectedImage.path, adjustments, saveGeneration);
 
-        const otherPaths = multiSelectedPaths.filter((p) => p !== selectedImage.path);
-        if (otherPaths.length > 0) {
-          const prev = prevAdjustmentsRef.current;
-          if (prev && prev.path === selectedImage.path) {
-            const delta: Partial<Adjustments> = {};
-            for (const key of Object.keys(adjustments) as Array<keyof Adjustments>) {
-              if (JSON.stringify(adjustments[key]) !== JSON.stringify(prev.adjustments[key])) {
-                (delta as any)[key] = adjustments[key];
+          const otherPaths = multiSelectedPaths.filter((p) => p !== selectedImage.path);
+          if (otherPaths.length > 0) {
+            const prev = prevAdjustmentsRef.current;
+            if (prev && prev.path === selectedImage.path) {
+              const delta: Partial<Adjustments> = {};
+              for (const key of Object.keys(adjustments) as Array<keyof Adjustments>) {
+                if (JSON.stringify(adjustments[key]) !== JSON.stringify(prev.adjustments[key])) {
+                  (delta as any)[key] = adjustments[key];
+                }
               }
-            }
-            if (Object.keys(delta).length > 0) {
-              invoke(Invokes.ApplyAdjustmentsToPaths, { paths: otherPaths, adjustments: delta }).catch((err) => {
-                console.error('Failed to apply adjustments to multi-selection:', err);
-              });
+              if (Object.keys(delta).length > 0) {
+                invoke(Invokes.ApplyAdjustmentsToPaths, { paths: otherPaths, adjustments: delta }).catch((err) => {
+                  console.error('Failed to apply adjustments to multi-selection:', err);
+                });
+              }
             }
           }
         }
@@ -2540,6 +2588,7 @@ function App() {
     applyAdjustments,
     debouncedSave,
     appSettings?.enableLivePreviews,
+    setImageList,
   ]);
 
   const handleZoomChange = useCallback(
@@ -3408,8 +3457,10 @@ function App() {
             initialAdjusts = { ...INITIAL_ADJUSTMENTS };
           }
 
+          userInitiatedAdjustmentChangeRef.current = false;
           setLiveAdjustments(initialAdjusts);
           resetAdjustmentsHistory(initialAdjusts);
+          void syncImageEditedState(selectedImage.path);
         } catch (err) {
           console.error('Failed to load metadata early:', err);
         }
@@ -3571,9 +3622,20 @@ function App() {
       }
 
       debouncedSetHistory.cancel();
+      debouncedSave.cancel();
+      userInitiatedAdjustmentChangeRef.current = false;
+      autoSaveGenerationRef.current += 1;
 
       invoke(Invokes.ResetAdjustmentsForPaths, { paths: pathsToReset })
         .then(() => {
+          const resetPathSet = new Set(pathsToReset);
+          setImageList((prevList: Array<ImageFile>) =>
+            prevList.map((image: ImageFile) => (resetPathSet.has(image.path) ? { ...image, is_edited: false } : image)),
+          );
+          pathsToReset.forEach((path: string) => {
+            void syncImageEditedState(path);
+          });
+
           if (libraryActivePath && pathsToReset.includes(libraryActivePath)) {
             setLibraryActiveAdjustments((prev: Adjustments) => ({ ...INITIAL_ADJUSTMENTS, rating: prev.rating }));
           }
@@ -3603,6 +3665,9 @@ function App() {
       adjustments.rating,
       resetAdjustmentsHistory,
       debouncedSetHistory,
+      debouncedSave,
+      setImageList,
+      syncImageEditedState,
     ],
   );
 
@@ -3934,6 +3999,7 @@ function App() {
             });
             if (metadata.adjustments && !metadata.adjustments.is_null) {
               const normalized = normalizeLoadedAdjustments(metadata.adjustments);
+              userInitiatedAdjustmentChangeRef.current = true;
               setLiveAdjustments(normalized);
               resetAdjustmentsHistory(normalized);
             }

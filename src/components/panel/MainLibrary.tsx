@@ -1029,7 +1029,7 @@ function Thumbnail({
 
       {isEdited && (
         <div
-          className="absolute top-1.5 left-1.5 bg-bg-primary/60 rounded-full p-1 backdrop-blur-sm z-50"
+          className="absolute top-1.5 right-1.5 bg-bg-primary/60 rounded-full p-1 backdrop-blur-sm z-50"
           data-tooltip="Edited"
         >
           <Pencil size={12} className="text-text-primary" />
@@ -1037,7 +1037,9 @@ function Thumbnail({
       )}
 
       {(colorLabel || rating > 0) && (
-        <div className="absolute top-1.5 right-1.5 bg-bg-primary/50 rounded-full px-1.5 py-0.5 flex items-center gap-1 backdrop-blur-sm">
+        <div
+          className={`absolute top-1.5 ${isEdited ? 'right-8' : 'right-1.5'} bg-bg-primary/50 rounded-full px-1.5 py-0.5 flex items-center gap-1 backdrop-blur-sm`}
+        >
           {colorLabel && (
             <div
               className="w-3 h-3 rounded-full ring-1 ring-black/20"

@@ -522,16 +522,13 @@ export default function Editor({
         if (currentAdjCrop === null || geometryChanged) {
           prevCropParams.current = { rotation, aspectRatio, orientationSteps };
 
-          const isDifferent =
-            !currentAdjCrop ||
-            currentAdjCrop.x !== maxPixelCrop.x ||
-            currentAdjCrop.y !== maxPixelCrop.y ||
-            currentAdjCrop.width !== maxPixelCrop.width ||
-            currentAdjCrop.height !== maxPixelCrop.height;
-
-          if (isDifferent) {
-            setAdjustments((prev: Partial<Adjustments>) => ({ ...prev, crop: maxPixelCrop }));
-          }
+          setCrop({
+            unit: '%',
+            x: (maxPixelCrop.x / W) * 100,
+            y: (maxPixelCrop.y / H) * 100,
+            width: (maxPixelCrop.width / W) * 100,
+            height: (maxPixelCrop.height / H) * 100,
+          });
         }
       }
     }

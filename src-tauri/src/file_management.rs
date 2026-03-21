@@ -64,6 +64,144 @@ fn emit_thumbnail_cache_setup_error(app_handle: &AppHandle, path: &str, reason: 
     );
 }
 
+fn all_sections_visible_value() -> Value {
+    serde_json::json!({
+        "basic": true,
+        "color": true,
+        "curves": true,
+        "details": true,
+        "effects": true,
+    })
+}
+
+fn default_adjustments_value() -> Value {
+    serde_json::from_str(
+        r#"{
+            "aiPatches": [],
+            "blacks": 0,
+            "brightness": 0,
+            "centré": 0,
+            "clarity": 0,
+            "chromaticAberrationBlueYellow": 0,
+            "chromaticAberrationRedCyan": 0,
+            "colorCalibration": {
+                "blueHue": 0,
+                "blueSaturation": 0,
+                "greenHue": 0,
+                "greenSaturation": 0,
+                "redHue": 0,
+                "redSaturation": 0,
+                "shadowsTint": 0
+            },
+            "colorGrading": {
+                "balance": 0,
+                "blending": 50,
+                "highlights": { "hue": 0, "luminance": 0, "saturation": 0 },
+                "midtones": { "hue": 0, "luminance": 0, "saturation": 0 },
+                "shadows": { "hue": 0, "luminance": 0, "saturation": 0 }
+            },
+            "colorNoiseReduction": 0,
+            "contrast": 0,
+            "crop": null,
+            "curves": {
+                "blue": [{ "x": 0, "y": 0 }, { "x": 255, "y": 255 }],
+                "green": [{ "x": 0, "y": 0 }, { "x": 255, "y": 255 }],
+                "luma": [{ "x": 0, "y": 0 }, { "x": 255, "y": 255 }],
+                "red": [{ "x": 0, "y": 0 }, { "x": 255, "y": 255 }]
+            },
+            "dehaze": 0,
+            "exposure": 0,
+            "flareAmount": 0,
+            "flipHorizontal": false,
+            "flipVertical": false,
+            "glowAmount": 0,
+            "grainAmount": 0,
+            "grainRoughness": 50,
+            "grainSize": 25,
+            "halationAmount": 0,
+            "highlights": 0,
+            "hsl": {
+                "aquas": { "hue": 0, "luminance": 0, "saturation": 0 },
+                "blues": { "hue": 0, "luminance": 0, "saturation": 0 },
+                "greens": { "hue": 0, "luminance": 0, "saturation": 0 },
+                "magentas": { "hue": 0, "luminance": 0, "saturation": 0 },
+                "oranges": { "hue": 0, "luminance": 0, "saturation": 0 },
+                "purples": { "hue": 0, "luminance": 0, "saturation": 0 },
+                "reds": { "hue": 0, "luminance": 0, "saturation": 0 },
+                "yellows": { "hue": 0, "luminance": 0, "saturation": 0 }
+            },
+            "lensDistortionAmount": 100,
+            "lensDistortionEnabled": true,
+            "lensDistortionParams": null,
+            "lensMaker": null,
+            "lensModel": null,
+            "lensTcaAmount": 100,
+            "lensTcaEnabled": true,
+            "lensVignetteAmount": 100,
+            "lensVignetteEnabled": true,
+            "lumaNoiseReduction": 0,
+            "lutData": null,
+            "lutIntensity": 100,
+            "lutName": null,
+            "lutPath": null,
+            "lutSize": 0,
+            "masks": [],
+            "orientationSteps": 0,
+            "rating": 0,
+            "rotation": 0,
+            "saturation": 0,
+            "sectionVisibility": {
+                "basic": true,
+                "color": true,
+                "curves": true,
+                "details": true,
+                "effects": true
+            },
+            "shadows": 0,
+            "sharpness": 0,
+            "showClipping": false,
+            "structure": 0,
+            "temperature": 0,
+            "tint": 0,
+            "toneMapper": "basic",
+            "transformAspect": 0,
+            "transformDistortion": 0,
+            "transformHorizontal": 0,
+            "transformRotate": 0,
+            "transformScale": 100,
+            "transformVertical": 0,
+            "transformXOffset": 0,
+            "transformYOffset": 0,
+            "vibrance": 0,
+            "vignetteAmount": 0,
+            "vignetteFeather": 50,
+            "vignetteMidpoint": 50,
+            "vignetteRoundness": 0,
+            "whites": 0
+        }"#,
+    )
+    .expect("default adjustments JSON should be valid")
+}
+
+fn is_meaningfully_edited(adjustments: &Value, is_raw: bool) -> bool {
+    if adjustments.is_null() {
+        return false;
+    }
+
+    let mut normalized_adjustments = adjustments.clone();
+    if let Some(obj) = normalized_adjustments.as_object_mut() {
+        // Treat aspect ratio as a UI/default value, not a user edit.
+        obj.remove("aspectRatio");
+        obj.insert("sectionVisibility".to_string(), all_sections_visible_value());
+        obj.insert("showClipping".to_string(), Value::Bool(false));
+    }
+
+    let current = get_all_adjustments_from_json(&normalized_adjustments, is_raw);
+    let default = get_all_adjustments_from_json(&default_adjustments_value(), is_raw);
+
+    current != default
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Preset {
     pub id: String,
@@ -617,9 +755,7 @@ pub fn list_images_in_dir(path: String, app_handle: AppHandle) -> Result<Vec<Ima
                     }
                 }
 
-                let edited = metadata.adjustments.as_object().map_or(false, |a| {
-                    a.keys().len() > 1 || (a.keys().len() == 1 && !a.contains_key("rating"))
-                });
+                let edited = is_meaningfully_edited(&metadata.adjustments, is_raw_file(&source_path_buf));
                 (edited, metadata.tags)
             };
 
@@ -733,9 +869,7 @@ pub fn list_images_recursive(
                     }
                 }
 
-                let edited = metadata.adjustments.as_object().map_or(false, |a| {
-                    a.keys().len() > 1 || (a.keys().len() == 1 && !a.contains_key("rating"))
-                });
+                let edited = is_meaningfully_edited(&metadata.adjustments, is_raw_file(&source_path_buf));
                 (edited, metadata.tags)
             };
 
@@ -751,6 +885,25 @@ pub fn list_images_recursive(
     }
 
     Ok(result_list)
+}
+
+#[tauri::command]
+pub fn get_image_edit_state(path: String) -> Result<bool, String> {
+    let (source_path, sidecar_path) = parse_virtual_path(&path);
+
+    if !sidecar_path.exists() {
+        return Ok(false);
+    }
+
+    let metadata: ImageMetadata = fs::read_to_string(&sidecar_path)
+        .ok()
+        .and_then(|content| serde_json::from_str(&content).ok())
+        .unwrap_or_default();
+
+    Ok(is_meaningfully_edited(
+        &metadata.adjustments,
+        is_raw_file(&source_path),
+    ))
 }
 
 #[derive(Serialize, Debug)]
@@ -1622,30 +1775,44 @@ pub fn move_files(source_paths: Vec<String>, destination_folder: String) -> Resu
 pub fn save_metadata_and_update_thumbnail(
     path: String,
     adjustments: Value,
+    generation: u64,
     app_handle: AppHandle,
     state: tauri::State<AppState>,
 ) -> Result<(), String> {
     let (source_path, sidecar_path) = parse_virtual_path(&path);
     let source_path_str = source_path.to_string_lossy().to_string();
 
-    let mut metadata: ImageMetadata = if sidecar_path.exists() {
-        fs::read_to_string(&sidecar_path)
-            .ok()
-            .and_then(|content| serde_json::from_str(&content).ok())
-            .unwrap_or_default()
-    } else {
-        ImageMetadata::default()
-    };
+    {
+        let mut generations = state.metadata_write_generations.lock().unwrap();
+        let current_generation = generations.get(&path).copied().unwrap_or(0);
+        if generation < current_generation {
+            return Ok(());
+        }
+        generations.insert(path.clone(), generation);
 
-    metadata.rating = adjustments["rating"].as_u64().unwrap_or(0) as u8;
-    metadata.adjustments = adjustments;
+        let mut metadata: ImageMetadata = if sidecar_path.exists() {
+            fs::read_to_string(&sidecar_path)
+                .ok()
+                .and_then(|content| serde_json::from_str(&content).ok())
+                .unwrap_or_default()
+        } else {
+            ImageMetadata::default()
+        };
 
-    let json_string = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
-    std::fs::write(&sidecar_path, json_string).map_err(|e| e.to_string())?;
+        metadata.rating = adjustments["rating"].as_u64().unwrap_or(0) as u8;
+        metadata.adjustments = adjustments.clone();
+
+        let json_string = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
+        std::fs::write(&sidecar_path, json_string).map_err(|e| e.to_string())?;
+    }
 
     if let Ok(settings) = load_settings(app_handle.clone()) {
         if settings.enable_xmp_sync.unwrap_or(false) {
             let create_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
+            let metadata: ImageMetadata = fs::read_to_string(&sidecar_path)
+                .ok()
+                .and_then(|content| serde_json::from_str(&content).ok())
+                .unwrap_or_default();
             sync_metadata_to_xmp(&source_path, &metadata, create_if_missing);
         }
     }
@@ -1816,6 +1983,7 @@ pub fn apply_adjustments_to_paths(
 pub fn reset_adjustments_for_paths(
     paths: Vec<String>,
     app_handle: AppHandle,
+    state: tauri::State<AppState>,
 ) -> Result<(), String> {
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
     let enable_xmp_sync = settings.enable_xmp_sync.unwrap_or(false);
@@ -1824,24 +1992,32 @@ pub fn reset_adjustments_for_paths(
     paths.par_iter().for_each(|path| {
         let (_, sidecar_path) = parse_virtual_path(path);
 
-        let mut existing_metadata: ImageMetadata = if sidecar_path.exists() {
-            fs::read_to_string(&sidecar_path)
-                .ok()
-                .and_then(|content| serde_json::from_str(&content).ok())
-                .unwrap_or_default()
-        } else {
-            ImageMetadata::default()
+        let existing_metadata = {
+            let mut generations = state.metadata_write_generations.lock().unwrap();
+            let next_generation = generations.get(path).copied().unwrap_or(0) + 1;
+            generations.insert(path.clone(), next_generation);
+
+            let mut metadata: ImageMetadata = if sidecar_path.exists() {
+                fs::read_to_string(&sidecar_path)
+                    .ok()
+                    .and_then(|content| serde_json::from_str(&content).ok())
+                    .unwrap_or_default()
+            } else {
+                ImageMetadata::default()
+            };
+
+            let new_adjustments = serde_json::json!({
+                "rating": metadata.rating
+            });
+
+            metadata.adjustments = new_adjustments;
+
+            if let Ok(json_string) = serde_json::to_string_pretty(&metadata) {
+                let _ = std::fs::write(&sidecar_path, json_string);
+            }
+
+            metadata
         };
-
-        let new_adjustments = serde_json::json!({
-            "rating": existing_metadata.rating
-        });
-
-        existing_metadata.adjustments = new_adjustments;
-
-        if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
-            let _ = std::fs::write(&sidecar_path, json_string);
-        }
 
         if enable_xmp_sync {
             let source_path = parse_virtual_path(path).0;

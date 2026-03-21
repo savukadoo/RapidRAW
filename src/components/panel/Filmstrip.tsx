@@ -213,15 +213,17 @@ const FilmstripThumbnail = memo(
 
         {isEdited && (
           <div
-            className="absolute top-1 left-1 bg-black/70 rounded-full p-1 z-10"
+            className="absolute top-1 right-1 bg-bg-primary/60 rounded-full p-1 backdrop-blur-sm z-10"
             data-tooltip="Edited"
           >
-            <Pencil size={10} className="text-white" />
+            <Pencil size={10} className="text-text-primary" />
           </div>
         )}
 
         {(colorLabel || rating > 0) && (
-          <div className="absolute top-1 right-1 bg-primary rounded-full px-1.5 py-0.5 text-xs text-white flex items-center gap-1 backdrop-blur-sm shadow-sm z-10">
+            <div
+            className={`absolute top-1 ${isEdited ? 'right-6' : 'right-1'} bg-primary rounded-full px-1.5 py-0.5 text-xs text-white flex items-center gap-1 backdrop-blur-sm shadow-sm z-10`}
+          >
             {colorLabel && (
               <div
                 className="w-3 h-3 rounded-full ring-1 ring-black/20"

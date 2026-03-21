@@ -515,6 +515,25 @@ export const INITIAL_ADJUSTMENTS: Adjustments = {
   whites: 0,
 };
 
+const EDIT_STATE_IGNORED_KEYS = new Set(['aspectRatio', 'rating', 'sectionVisibility', 'showClipping']);
+
+const stripEditStateNoise = (value: any): any => {
+  if (Array.isArray(value)) {
+    return value.map(stripEditStateNoise);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.entries(value).reduce((acc: Record<string, any>, [key, nestedValue]) => {
+      if (!EDIT_STATE_IGNORED_KEYS.has(key)) {
+        acc[key] = stripEditStateNoise(nestedValue);
+      }
+      return acc;
+    }, {});
+  }
+
+  return value;
+};
+
 export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any => {
   if (!loadedAdjustments) {
     return INITIAL_ADJUSTMENTS;
@@ -596,6 +615,13 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
       ...(loadedAdjustments.sectionVisibility || {}),
     },
   };
+};
+
+export const isMeaningfullyEdited = (loadedAdjustments: Adjustments): boolean => {
+  const normalizedLoaded = normalizeLoadedAdjustments(loadedAdjustments);
+  const normalizedDefault = normalizeLoadedAdjustments(INITIAL_ADJUSTMENTS);
+
+  return JSON.stringify(stripEditStateNoise(normalizedLoaded)) !== JSON.stringify(stripEditStateNoise(normalizedDefault));
 };
 
 export const COPYABLE_ADJUSTMENT_KEYS: Array<string> = [
