@@ -44,7 +44,7 @@ import {
 } from 'lucide-react';
 import TitleBar from './window/TitleBar';
 import CommunityPage from './components/panel/CommunityPage';
-import MainLibrary, { ColumnWidths } from './components/panel/MainLibrary';
+import MainLibrary, { ColumnWidths, LibraryColumnKey } from './components/panel/MainLibrary';
 import FolderTree from './components/panel/FolderTree';
 import Editor from './components/panel/Editor';
 import Controls from './components/panel/right/ControlsPanel';
@@ -457,6 +457,13 @@ function App() {
     rating: 15,
     color: 15,
   });
+  const [visibleListColumns, setVisibleListColumns] = useState<LibraryColumnKey[]>([
+    'thumbnail',
+    'name',
+    'date',
+    'rating',
+    'color',
+  ]);
   const { showContextMenu } = useContextMenu();
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   const { requestThumbnails, clearThumbnailQueue } = useThumbnails();
@@ -5013,6 +5020,8 @@ function App() {
             onNavigateToCommunity={() => setActiveView('community')}
             listColumnWidths={listColumnWidths}
             setListColumnWidths={setListColumnWidths}
+            visibleListColumns={visibleListColumns}
+            setVisibleListColumns={setVisibleListColumns}
           />
         )}
         {rootPath && (

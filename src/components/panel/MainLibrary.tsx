@@ -51,7 +51,161 @@ export interface ColumnWidths {
   date: number;
   rating: number;
   color: number;
+  iso?: number;
+  aperture?: number;
+  shutter_speed?: number;
+  focal_length?: number;
+  date_taken?: number;
 }
+
+export type LibraryColumnKey = keyof ColumnWidths;
+
+const DEFAULT_COLUMN_WIDTHS: Required<ColumnWidths> = {
+  thumbnail: 8,
+  name: 32,
+  date: 24,
+  rating: 12,
+  color: 10,
+  iso: 10,
+  aperture: 12,
+  shutter_speed: 14,
+  focal_length: 14,
+  date_taken: 18,
+};
+
+const BASE_LIST_COLUMNS: LibraryColumnKey[] = ['thumbnail', 'name', 'date', 'rating', 'color'];
+const EXIF_SORT_COLUMN_KEYS: LibraryColumnKey[] = ['date_taken', 'iso', 'shutter_speed', 'aperture', 'focal_length'];
+
+const SORT_KEY_TO_COLUMN_KEY: Partial<Record<string, LibraryColumnKey>> = {
+  date_taken: 'date_taken',
+  iso: 'iso',
+  shutter_speed: 'shutter_speed',
+  aperture: 'aperture',
+  focal_length: 'focal_length',
+};
+
+const getResolvedColumnWidths = (widths: ColumnWidths, visibleColumns: LibraryColumnKey[]) => {
+  const rawWidths = visibleColumns.reduce(
+    (acc, key) => {
+      acc[key] = widths[key] ?? DEFAULT_COLUMN_WIDTHS[key];
+      return acc;
+    },
+    {} as Record<LibraryColumnKey, number>,
+  );
+
+  const total = Object.values(rawWidths).reduce((sum, value) => sum + value, 0) || 1;
+
+  return visibleColumns.reduce(
+    (acc, key) => {
+      acc[key] = (rawWidths[key] / total) * 100;
+      return acc;
+    },
+    {} as Record<LibraryColumnKey, number>,
+  );
+};
+
+const getExifValue = (exif: any, keys: string[]) => {
+  if (!exif) return undefined;
+  for (const key of keys) {
+    const value = exif?.[key];
+    if (value !== undefined && value !== null && value !== '') {
+      return value;
+    }
+  }
+  return undefined;
+};
+
+const formatExifValue = (column: LibraryColumnKey, exif: any) => {
+  switch (column) {
+    case 'iso': {
+      const iso = getExifValue(exif, ['PhotographicSensitivity', 'ISOSpeedRatings', 'ISOSpeed', 'ISO']);
+      return iso !== undefined ? String(iso) : '—';
+    }
+    case 'aperture': {
+      const aperture = getExifValue(exif, ['FNumber', 'ApertureValue', 'aperture']);
+      if (aperture === undefined) return '—';
+      const apertureString = String(aperture).trim();
+      return /^f\//i.test(apertureString) ? apertureString : `f/${apertureString}`;
+    }
+    case 'shutter_speed': {
+      const shutter = getExifValue(exif, ['ExposureTime', 'ShutterSpeedValue', 'shutter_speed']);
+      return shutter !== undefined ? String(shutter) : '—';
+    }
+    case 'focal_length': {
+      const focalLength = getExifValue(exif, ['FocalLengthIn35mmFilm', 'FocalLength', 'FocalLengthIn35mmFormat']);
+      if (focalLength === undefined) return '—';
+      const focalLengthString = String(focalLength).trim();
+      return /mm$/i.test(focalLengthString) ? focalLengthString : `${focalLengthString} mm`;
+    }
+    case 'date_taken': {
+      const dateTaken = getExifValue(exif, ['DateTimeOriginal', 'CreateDate', 'DateTimeDigitized', 'date_taken']);
+      return dateTaken !== undefined ? String(dateTaken) : '—';
+    }
+    default:
+      return '—';
+  }
+};
+
+
+const parseShutterSpeedToSeconds = (value: any): number | null => {
+  if (value === undefined || value === null) return null;
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value > 0 ? value : null;
+  }
+
+  let normalized = String(value).trim();
+  if (!normalized) return null;
+
+  normalized = normalized
+    .replace(/[″”]/g, ' s')
+    .replace(/[′]/g, '')
+    .replace(/seconds?/gi, 's')
+    .replace(/sec(?:onds?)?/gi, 's')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (normalized.includes('/')) {
+    const fractionMatch = normalized.match(/([0-9]+(?:\.[0-9]+)?)\s*\/\s*([0-9]+(?:\.[0-9]+)?)/);
+    if (fractionMatch) {
+      const numerator = Number(fractionMatch[1]);
+      const denominator = Number(fractionMatch[2]);
+      if (Number.isFinite(numerator) && Number.isFinite(denominator) && denominator !== 0) {
+        return numerator / denominator;
+      }
+    }
+  }
+
+  const numberMatch = normalized.match(/([0-9]+(?:\.[0-9]+)?)/);
+  if (!numberMatch) return null;
+
+  const parsed = Number(numberMatch[1]);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const getSortValue = (image: ImageFile, sortKey: string) => {
+  switch (sortKey) {
+    case 'shutter_speed': {
+      const shutterValue = getExifValue(image.exif, ['ExposureTime', 'ShutterSpeedValue', 'shutter_speed']);
+      return parseShutterSpeedToSeconds(shutterValue);
+    }
+    default:
+      return null;
+  }
+};
+
+const LIST_COLUMN_DEFS: Array<{ key: LibraryColumnKey; title: string; sortKey?: string }> = [
+  { key: 'thumbnail', title: '' },
+  { key: 'name', title: 'Name', sortKey: 'name' },
+  { key: 'date', title: 'Modified', sortKey: 'date' },
+  { key: 'rating', title: 'Rating', sortKey: 'rating' },
+  { key: 'color', title: 'Label' },
+  { key: 'iso', title: 'ISO', sortKey: 'iso' },
+  { key: 'aperture', title: 'Aperture', sortKey: 'aperture' },
+  { key: 'shutter_speed', title: 'Shutter', sortKey: 'shutter_speed' },
+  { key: 'focal_length', title: 'Focal Length', sortKey: 'focal_length' },
+  { key: 'date_taken', title: 'Date Taken', sortKey: 'date_taken' },
+];
 
 interface DropdownMenuProps {
   buttonContent: any;
@@ -122,6 +276,8 @@ interface MainLibraryProps {
   onNavigateToCommunity(): void;
   listColumnWidths: ColumnWidths;
   setListColumnWidths: React.Dispatch<React.SetStateAction<ColumnWidths>>;
+  visibleListColumns: LibraryColumnKey[];
+  setVisibleListColumns: React.Dispatch<React.SetStateAction<LibraryColumnKey[]>>;
 }
 
 interface SearchInputProps {
@@ -133,8 +289,10 @@ interface SearchInputProps {
 
 interface SortOptionsProps {
   sortCriteria: SortCriteria;
-  setSortCriteria(criteria: SortCriteria): void;
+  setSortCriteria(criteria: SortCriteria | ((prev: SortCriteria) => SortCriteria)): void;
   sortOptions: Array<Omit<SortCriteria, 'order'> & { label?: string; disabled?: boolean }>;
+  selectedSortFields: string[];
+  onToggleSortField: (key: string) => void;
 }
 
 interface ImageLayer {
@@ -159,7 +317,9 @@ interface ThumbnailProps {
 
 interface ListItemProps extends ThumbnailProps {
   modified: number;
+  exif?: any;
   columnWidths: ColumnWidths;
+  visibleColumns: LibraryColumnKey[];
 }
 
 interface ThumbnailSizeOption {
@@ -190,9 +350,11 @@ interface ViewOptionsProps {
   onSelectAspectRatio(aspectRatio: ThumbnailAspectRatio): any;
   setFilterCriteria(criteria: Partial<FilterCriteria>): void;
   setLibraryViewMode(mode: LibraryViewMode): void;
-  setSortCriteria(criteria: SortCriteria): void;
+  setSortCriteria(criteria: SortCriteria | ((prev: SortCriteria) => SortCriteria)): void;
   sortCriteria: SortCriteria;
   sortOptions: Array<Omit<SortCriteria, 'order'> & { label?: string; disabled?: boolean }>;
+  selectedSortFields: string[];
+  onToggleSortField(key: string): void;
   thumbnailSize: ThumbnailSize;
   thumbnailAspectRatio: ThumbnailAspectRatio;
 }
@@ -258,19 +420,23 @@ function ListHeader({
   containerRef,
   sortCriteria,
   onSortChange,
+  visibleColumns,
 }: {
   widths: ColumnWidths;
   setWidths: React.Dispatch<React.SetStateAction<ColumnWidths>>;
   containerRef: React.RefObject<HTMLDivElement>;
   sortCriteria: SortCriteria;
   onSortChange: (key: string) => void;
+  visibleColumns: LibraryColumnKey[];
 }) {
-  const handleResize = (e: React.MouseEvent, leftCol: keyof ColumnWidths, rightCol: keyof ColumnWidths) => {
+  const resolvedWidths = getResolvedColumnWidths(widths, visibleColumns);
+
+  const handleResize = (e: React.MouseEvent, leftCol: LibraryColumnKey, rightCol: LibraryColumnKey) => {
     e.preventDefault();
     e.stopPropagation();
     const startX = e.clientX;
-    const startLeftWidth = widths[leftCol];
-    const startRightWidth = widths[rightCol];
+    const startLeftWidth = widths[leftCol] ?? DEFAULT_COLUMN_WIDTHS[leftCol];
+    const startRightWidth = widths[rightCol] ?? DEFAULT_COLUMN_WIDTHS[rightCol];
     const containerWidth = containerRef.current?.clientWidth || 1000;
 
     const onMouseMove = (moveEvent: MouseEvent) => {
@@ -305,61 +471,49 @@ function ListHeader({
     document.addEventListener('mouseup', onMouseUp);
   };
 
-  const Column = ({
-    title,
-    widthKey,
-    nextKey,
-    sortKey,
-  }: {
-    title: string;
-    widthKey: keyof ColumnWidths;
-    nextKey?: keyof ColumnWidths;
-    sortKey?: string;
-  }) => {
-    const isSorted = sortCriteria.key === sortKey;
-    const isAsc = sortCriteria.order === SortDirection.Ascending;
-
-    return (
-      <div
-        style={{ width: `${widths[widthKey]}%` }}
-        className={`relative flex items-center px-3 h-full select-none ${
-          sortKey ? 'cursor-pointer hover:bg-bg-primary/50 transition-colors' : ''
-        }`}
-        onClick={() => sortKey && onSortChange(sortKey)}
-      >
-        <Text
-          variant={TextVariants.small}
-          weight={TextWeights.semibold}
-          color={isSorted ? TextColors.primary : TextColors.secondary}
-          className="uppercase tracking-wider text-[11px]"
-        >
-          {title}
-        </Text>
-        {isSorted && (
-          <span className="ml-1 flex items-center text-accent">
-            {isAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </span>
-        )}
-        {nextKey && (
-          <div
-            className="absolute right-[-3px] top-1.5 bottom-1.5 w-[6px] cursor-col-resize z-10 group flex items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => handleResize(e, widthKey, nextKey)}
-          >
-            <div className="w-px h-full bg-border-color/40 group-hover:bg-accent transition-colors" />
-          </div>
-        )}
-      </div>
-    );
-  };
+  const visibleDefs = LIST_COLUMN_DEFS.filter((column) => visibleColumns.includes(column.key));
 
   return (
     <div className="flex items-center w-full h-9 bg-bg-secondary/80 backdrop-blur-sm border-b border-border-color/50 shrink-0">
-      <Column title="" widthKey="thumbnail" nextKey="name" />
-      <Column title="Name" widthKey="name" nextKey="date" sortKey="name" />
-      <Column title="Modified" widthKey="date" nextKey="rating" sortKey="date" />
-      <Column title="Rating" widthKey="rating" nextKey="color" sortKey="rating" />
-      <Column title="Label" widthKey="color" />
+      {visibleDefs.map((column, index) => {
+        const nextColumn = visibleDefs[index + 1];
+        const isSorted = sortCriteria.key === column.sortKey;
+        const isAsc = sortCriteria.order === SortDirection.Ascending;
+
+        return (
+          <div
+            key={column.key}
+            style={{ width: `${resolvedWidths[column.key]}%` }}
+            className={`relative flex items-center px-3 h-full select-none ${
+              column.sortKey ? 'cursor-pointer hover:bg-bg-primary/50 transition-colors' : ''
+            }`}
+            onClick={() => column.sortKey && onSortChange(column.sortKey)}
+          >
+            <Text
+              variant={TextVariants.small}
+              weight={TextWeights.semibold}
+              color={isSorted ? TextColors.primary : TextColors.secondary}
+              className="uppercase tracking-wider text-[11px] truncate"
+            >
+              {column.title}
+            </Text>
+            {isSorted && (
+              <span className="ml-1 flex items-center text-accent shrink-0">
+                {isAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              </span>
+            )}
+            {nextColumn && (
+              <div
+                className="absolute right-[-3px] top-1.5 bottom-1.5 w-[6px] cursor-col-resize z-10 group flex items-center justify-center"
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => handleResize(e, column.key, nextColumn.key)}
+              >
+                <div className="w-px h-full bg-border-color/40 group-hover:bg-accent transition-colors" />
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -834,8 +988,21 @@ function FilterOptions({ filterCriteria, setFilterCriteria }: FilterOptionProps)
   );
 }
 
-function SortOptions({ sortCriteria, setSortCriteria, sortOptions }: SortOptionsProps) {
+function SortOptions({
+  sortCriteria,
+  setSortCriteria,
+  sortOptions,
+  selectedSortFields,
+  onToggleSortField,
+}: SortOptionsProps) {
+  const selectableSortFieldKeys = useMemo(() => new Set(['iso', 'shutter_speed', 'aperture', 'focal_length']), []);
+
   const handleKeyChange = (key: string) => {
+    if (selectableSortFieldKeys.has(key)) {
+      onToggleSortField(key);
+      return;
+    }
+
     setSortCriteria((prev: SortCriteria) => ({ ...prev, key }));
   };
 
@@ -889,7 +1056,11 @@ function SortOptions({ sortCriteria, setSortCriteria, sortOptions }: SortOptions
         </button>
       </div>
       {sortOptions.map((option) => {
-        const isSelected = sortCriteria.key === option.key;
+        const isSelectableSortField = selectableSortFieldKeys.has(option.key);
+        const isSelected = isSelectableSortField
+          ? selectedSortFields.includes(option.key)
+          : sortCriteria.key === option.key;
+
         return (
           <button
             className={`w-full text-left px-3 py-2 rounded-md flex items-center justify-between transition-colors duration-150 ${
@@ -968,6 +1139,8 @@ function ViewOptionsDropdown({
   setSortCriteria,
   sortCriteria,
   sortOptions,
+  selectedSortFields,
+  onToggleSortField,
   thumbnailSize,
   thumbnailAspectRatio,
 }: ViewOptionsProps) {
@@ -1004,7 +1177,13 @@ function ViewOptionsDropdown({
           <FilterOptions filterCriteria={filterCriteria} setFilterCriteria={setFilterCriteria} />
         </div>
         <div className="w-1/4 p-2">
-          <SortOptions sortCriteria={sortCriteria} setSortCriteria={setSortCriteria} sortOptions={sortOptions} />
+          <SortOptions
+            sortCriteria={sortCriteria}
+            setSortCriteria={setSortCriteria}
+            sortOptions={sortOptions}
+            selectedSortFields={selectedSortFields}
+            onToggleSortField={onToggleSortField}
+          />
         </div>
       </div>
     </DropdownMenu>
@@ -1023,8 +1202,10 @@ function ListItem({
   rating,
   tags,
   modified,
+  exif,
   aspectRatio: thumbnailAspectRatio,
   columnWidths,
+  visibleColumns,
 }: ListItemProps) {
   const [showPlaceholder, setShowPlaceholder] = useState(false);
   const [layers, setLayers] = useState<ImageLayer[]>([]);
@@ -1099,6 +1280,8 @@ function ListItem({
     : isSelected
       ? 'ring-1 ring-inset ring-accent/50 bg-accent/5'
       : 'hover:bg-surface/80';
+  const resolvedWidths = getResolvedColumnWidths(columnWidths, visibleColumns);
+  const metaTextClassName = 'flex items-center px-3 h-full overflow-hidden';
 
   return (
     <div
@@ -1110,106 +1293,140 @@ function ListItem({
       onContextMenu={onContextMenu}
       onDoubleClick={() => onImageDoubleClick(path)}
     >
-      <div
-        style={{ width: `${columnWidths.thumbnail}%` }}
-        className="flex items-center justify-center p-1.5 h-full overflow-hidden"
-      >
-        <div className="w-full h-full relative overflow-hidden rounded-sm bg-surface flex items-center justify-center">
-          {layers.length > 0 && (
-            <div className="absolute inset-0 w-full h-full flex items-center justify-center">
-              {layers.map((layer) => (
-                <div
-                  key={layer.id}
-                  className="absolute inset-0 w-full h-full"
-                  style={{ opacity: layer.opacity, transition: 'opacity 300ms ease-in-out' }}
-                  onTransitionEnd={() => handleTransitionEnd(layer.id)}
-                >
-                  {thumbnailAspectRatio === ThumbnailAspectRatio.Contain && (
+      {visibleColumns.includes('thumbnail') && (
+        <div
+          style={{ width: `${resolvedWidths.thumbnail}%` }}
+          className="flex items-center justify-center p-1.5 h-full overflow-hidden"
+        >
+          <div className="w-full h-full relative overflow-hidden rounded-sm bg-surface flex items-center justify-center">
+            {layers.length > 0 && (
+              <div className="absolute inset-0 w-full h-full flex items-center justify-center">
+                {layers.map((layer) => (
+                  <div
+                    key={layer.id}
+                    className="absolute inset-0 w-full h-full"
+                    style={{ opacity: layer.opacity, transition: 'opacity 300ms ease-in-out' }}
+                    onTransitionEnd={() => handleTransitionEnd(layer.id)}
+                  >
+                    {thumbnailAspectRatio === ThumbnailAspectRatio.Contain && (
+                      <img
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover blur-md scale-110 brightness-[0.4]"
+                        src={layer.url}
+                      />
+                    )}
                     <img
-                      alt=""
-                      className="absolute inset-0 w-full h-full object-cover blur-md scale-110 brightness-[0.4]"
+                      alt={baseName}
+                      className={`w-full h-full relative ${
+                        thumbnailAspectRatio === ThumbnailAspectRatio.Contain ? 'object-contain' : 'object-cover'
+                      }`}
+                      decoding="async"
+                      loading="lazy"
                       src={layer.url}
                     />
-                  )}
-                  <img
-                    alt={baseName}
-                    className={`w-full h-full relative ${
-                      thumbnailAspectRatio === ThumbnailAspectRatio.Contain ? 'object-contain' : 'object-cover'
-                    }`}
-                    decoding="async"
-                    loading="lazy"
-                    src={layer.url}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-
-          <AnimatePresence>
-            {layers.length === 0 && showPlaceholder && (
-              <motion.div
-                className="absolute inset-0 w-full h-full flex items-center justify-center"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3, ease: 'easeInOut' }}
-              >
-                <ImageIcon size={14} className="text-text-secondary animate-pulse" />
-              </motion.div>
+                  </div>
+                ))}
+              </div>
             )}
-          </AnimatePresence>
+
+            <AnimatePresence>
+              {layers.length === 0 && showPlaceholder && (
+                <motion.div
+                  className="absolute inset-0 w-full h-full flex items-center justify-center"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                >
+                  <ImageIcon size={14} className="text-text-secondary animate-pulse" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Name */}
-      <div style={{ width: `${columnWidths.name}%` }} className="flex items-center gap-2 px-3 h-full overflow-hidden">
-        <Text variant={TextVariants.small} className="truncate" weight={TextWeights.medium} color={TextColors.primary}>
-          {baseName}
-        </Text>
-        {isVirtualCopy && (
+      {visibleColumns.includes('name') && (
+        <div style={{ width: `${resolvedWidths.name}%` }} className="flex items-center gap-2 px-3 h-full overflow-hidden">
           <Text
-            as="div"
             variant={TextVariants.small}
-            color={TextColors.secondary}
-            weight={TextWeights.bold}
-            className="shrink-0 bg-bg-primary px-1.5 py-0.5 rounded-full leading-none border border-border-color"
-            data-tooltip="Virtual Copy"
+            className="truncate"
+            weight={TextWeights.medium}
+            color={TextColors.primary}
           >
-            VC
+            {baseName}
           </Text>
-        )}
-      </div>
+          {isVirtualCopy && (
+            <Text
+              as="div"
+              variant={TextVariants.small}
+              color={TextColors.secondary}
+              weight={TextWeights.bold}
+              className="shrink-0 bg-bg-primary px-1.5 py-0.5 rounded-full leading-none border border-border-color"
+              data-tooltip="Virtual Copy"
+            >
+              VC
+            </Text>
+          )}
+        </div>
+      )}
 
-      <div style={{ width: `${columnWidths.date}%` }} className="flex items-center px-3 h-full overflow-hidden">
-        <Text variant={TextVariants.small} color={TextColors.secondary} className="truncate">
-          {dateStr}
-        </Text>
-      </div>
+      {visibleColumns.includes('date') && (
+        <div style={{ width: `${resolvedWidths.date}%` }} className={metaTextClassName}>
+          <Text variant={TextVariants.small} color={TextColors.secondary} className="truncate">
+            {dateStr}
+          </Text>
+        </div>
+      )}
 
-      <div style={{ width: `${columnWidths.rating}%` }} className="flex items-center px-3 h-full overflow-hidden">
-        {rating > 0 && (
-          <div className="flex items-center gap-1">
-            <StarIcon size={12} className="text-accent fill-accent" />
-            <Text variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
-              {rating}
+      {visibleColumns.includes('rating') && (
+        <div style={{ width: `${resolvedWidths.rating}%` }} className={metaTextClassName}>
+          {rating > 0 ? (
+            <div className="flex items-center gap-1">
+              <Text variant={TextVariants.small} color={TextColors.primary}>
+                {rating}
+              </Text>
+              <StarIcon size={14} className="text-accent fill-accent" />
+            </div>
+          ) : (
+            <Text variant={TextVariants.small} color={TextColors.secondary}>
+              —
+            </Text>
+          )}
+        </div>
+      )}
+
+      {visibleColumns.includes('color') && (
+        <div style={{ width: `${resolvedWidths.color}%` }} className={metaTextClassName}>
+          {colorLabel ? (
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-3 h-3 rounded-full ring-1 ring-black/20 shrink-0" style={{ backgroundColor: colorLabel.color }} />
+              <Text variant={TextVariants.small} color={TextColors.secondary} className="truncate capitalize">
+                {colorLabel.name}
+              </Text>
+            </div>
+          ) : (
+            <Text variant={TextVariants.small} color={TextColors.secondary}>
+              —
+            </Text>
+          )}
+        </div>
+      )}
+
+      {LIST_COLUMN_DEFS
+        .filter(
+          (column) =>
+            EXIF_SORT_COLUMN_KEYS.includes(column.key) &&
+            visibleColumns.includes(column.key) &&
+            resolvedWidths[column.key] !== undefined,
+        )
+        .map((column) => (
+          <div key={column.key} style={{ width: `${resolvedWidths[column.key]}%` }} className={metaTextClassName}>
+            <Text variant={TextVariants.small} color={TextColors.secondary} className="truncate">
+              {formatExifValue(column.key, exif)}
             </Text>
           </div>
-        )}
-      </div>
-
-      <div style={{ width: `${columnWidths.color}%` }} className="flex items-center px-3 h-full overflow-hidden">
-        {colorLabel && (
-          <div className="flex items-center gap-1.5">
-            <div
-              className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/20"
-              style={{ backgroundColor: colorLabel.color }}
-            />
-            <Text variant={TextVariants.small} color={TextColors.secondary} className="capitalize truncate">
-              {colorLabel.name}
-            </Text>
-          </div>
-        )}
-      </div>
+        ))}
     </div>
   );
 }
@@ -1417,6 +1634,7 @@ const Row = ({
   gap,
   isListView,
   columnWidths,
+  visibleColumns,
 }: any) => {
   const row = rows[index];
   if (row.type === 'footer') return null;
@@ -1496,7 +1714,9 @@ const Row = ({
               tags={imageFile.tags || []}
               aspectRatio={thumbnailAspectRatio}
               modified={imageFile.modified}
+              exif={imageFile.exif}
               columnWidths={columnWidths}
+              visibleColumns={visibleColumns}
             />
           ) : (
             <Thumbnail
@@ -1564,6 +1784,8 @@ export default function MainLibrary({
   onNavigateToCommunity,
   listColumnWidths,
   setListColumnWidths,
+  visibleListColumns,
+  setVisibleListColumns,
 }: MainLibraryProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [appVersion, setAppVersion] = useState('');
@@ -1618,10 +1840,44 @@ export default function MainLibrary({
     folder: null as string | null,
   });
 
+  const sortedImageList = useMemo(() => {
+    if (sortCriteria.key !== 'shutter_speed') {
+      return imageList;
+    }
+
+    const direction = sortCriteria.order === SortDirection.Descening ? -1 : 1;
+
+    return [...imageList].sort((a, b) => {
+      const aValue = getSortValue(a, sortCriteria.key);
+      const bValue = getSortValue(b, sortCriteria.key);
+
+      if (aValue === null && bValue === null) return 0;
+      if (aValue === null) return 1;
+      if (bValue === null) return -1;
+      if (aValue === bValue) return 0;
+
+      return aValue < bValue ? -1 * direction : 1 * direction;
+    });
+  }, [imageList, sortCriteria.key, sortCriteria.order]);
+
   const groups = useMemo(() => {
     if (libraryViewMode === LibraryViewMode.Flat) return null;
-    return groupImagesByFolder(imageList, currentFolderPath);
-  }, [imageList, currentFolderPath, libraryViewMode]);
+    return groupImagesByFolder(sortedImageList, currentFolderPath);
+  }, [sortedImageList, currentFolderPath, libraryViewMode]);
+
+  const selectableSortFieldKeys = useMemo(
+    () => ['iso', 'shutter_speed', 'aperture', 'focal_length'] as LibraryColumnKey[],
+    [],
+  );
+  const selectedSortFields = useMemo(
+    () => visibleListColumns.filter((column) => selectableSortFieldKeys.includes(column)),
+    [visibleListColumns, selectableSortFieldKeys],
+  );
+
+  const resolvedListColumnWidths = useMemo(
+    () => getResolvedColumnWidths(listColumnWidths, visibleListColumns),
+    [listColumnWidths, visibleListColumns],
+  );
 
   const handleSortChange = useCallback(
     (criteria: SortCriteria | ((prev: SortCriteria) => SortCriteria)) => {
@@ -1629,6 +1885,28 @@ export default function MainLibrary({
       setSortCriteria(criteria);
     },
     [onClearSelection, setSortCriteria],
+  );
+
+  const handleToggleSortField = useCallback(
+    (key: string) => {
+      const columnKey = SORT_KEY_TO_COLUMN_KEY[key];
+      if (!columnKey || !selectableSortFieldKeys.includes(columnKey)) return;
+
+      onClearSelection();
+
+      const isSelected = visibleListColumns.includes(columnKey);
+
+      if (isSelected) {
+        setVisibleListColumns((prev) => prev.filter((column) => column !== columnKey));
+        setSortCriteria((current) =>
+          current.key === key ? { key: 'name', order: SortDirection.Ascending } : current,
+        );
+      } else {
+        setVisibleListColumns((prev) => [...prev, columnKey]);
+        setSortCriteria({ key, order: SortDirection.Ascending });
+      }
+    },
+    [onClearSelection, selectableSortFieldKeys, setSortCriteria, visibleListColumns],
   );
 
   const sortOptions = useMemo(() => {
@@ -1663,7 +1941,7 @@ export default function MainLibrary({
           ? 1
           : Math.max(1, Math.floor((availableWidth + ITEM_GAP) / (minThumbWidth + ITEM_GAP)));
         const itemWidth = isListView ? availableWidth : (availableWidth - ITEM_GAP * (columnCount - 1)) / columnCount;
-        const listRowHeight = Math.max(36, Math.min(300, (availableWidth * listColumnWidths.thumbnail) / 100));
+        const listRowHeight = Math.max(36, Math.min(300, (availableWidth * resolvedListColumnWidths.thumbnail) / 100));
         const rowHeight = isListView ? listRowHeight : itemWidth + ITEM_GAP;
         const headerHeight = 40;
 
@@ -1671,7 +1949,7 @@ export default function MainLibrary({
         let found = false;
 
         if (libraryViewMode === LibraryViewMode.Recursive) {
-          const grps = groupImagesByFolder(imageList, currentFolderPath);
+          const grps = groupImagesByFolder(sortedImageList, currentFolderPath);
           for (const group of grps) {
             if (group.images.length === 0) continue;
             targetTop += headerHeight;
@@ -1684,7 +1962,7 @@ export default function MainLibrary({
             targetTop += Math.ceil(group.images.length / columnCount) * rowHeight;
           }
         } else {
-          const idx = imageList.findIndex((img) => img.path === activePath);
+          const idx = sortedImageList.findIndex((img) => img.path === activePath);
           if (idx !== -1) {
             targetTop = Math.floor(idx / columnCount) * rowHeight;
             found = true;
@@ -1733,7 +2011,7 @@ export default function MainLibrary({
       : Math.max(1, Math.floor((availableWidth + ITEM_GAP) / (minThumbWidth + ITEM_GAP)));
     const itemWidth = isListView ? availableWidth : (availableWidth - ITEM_GAP * (columnCount - 1)) / columnCount;
 
-    const listRowHeight = Math.max(36, Math.min(300, (availableWidth * listColumnWidths.thumbnail) / 100));
+    const listRowHeight = Math.max(36, Math.min(300, (availableWidth * resolvedListColumnWidths.thumbnail) / 100));
     const rowHeight = isListView ? listRowHeight : itemWidth + ITEM_GAP;
     const headerHeight = 40;
 
@@ -1741,7 +2019,7 @@ export default function MainLibrary({
     let found = false;
 
     if (libraryViewMode === LibraryViewMode.Recursive) {
-      const groups = groupImagesByFolder(imageList, currentFolderPath);
+      const groups = groupImagesByFolder(sortedImageList, currentFolderPath);
       for (const group of groups) {
         if (group.images.length === 0) continue;
 
@@ -1759,7 +2037,7 @@ export default function MainLibrary({
         targetTop += rowsInGroup * rowHeight;
       }
     } else {
-      const index = imageList.findIndex((img) => img.path === activePath);
+      const index = sortedImageList.findIndex((img) => img.path === activePath);
       if (index !== -1) {
         const rowIndex = Math.floor(index / columnCount);
         targetTop = rowIndex * rowHeight;
@@ -1801,18 +2079,18 @@ export default function MainLibrary({
     }
   }, [
     activePath,
-    imageList,
+    sortedImageList,
     libraryViewMode,
     thumbnailSize,
     currentFolderPath,
     multiSelectedPaths.length,
     listHandle,
-    listColumnWidths.thumbnail,
+    resolvedListColumnWidths.thumbnail,
   ]);
 
   useEffect(() => {
     const exifEnabled = appSettings?.enableExifReading ?? true;
-    const exifSortKeys = ['date_taken', 'iso', 'shutter_speed', 'aperture', 'focal_length'];
+    const exifSortKeys = EXIF_SORT_COLUMN_KEYS;
     const isCurrentSortExif = exifSortKeys.includes(sortCriteria.key);
 
     if (!exifEnabled && isCurrentSortExif) {
@@ -2143,6 +2421,8 @@ export default function MainLibrary({
             setSortCriteria={handleSortChange}
             sortCriteria={sortCriteria}
             sortOptions={sortOptions}
+            selectedSortFields={selectedSortFields}
+            onToggleSortField={handleToggleSortField}
             thumbnailSize={thumbnailSize}
             thumbnailAspectRatio={thumbnailAspectRatio}
           />
@@ -2169,7 +2449,7 @@ export default function MainLibrary({
           </Button>
         </div>
       </header>
-      {imageList.length > 0 ? (
+      {sortedImageList.length > 0 ? (
         <div
           ref={gridContainerRef}
           className="flex-1 w-full h-full"
@@ -2192,7 +2472,7 @@ export default function MainLibrary({
                 ? availableWidth
                 : (availableWidth - ITEM_GAP * (columnCount - 1)) / columnCount;
 
-              const listRowHeight = Math.max(36, Math.min(300, (availableWidth * listColumnWidths.thumbnail) / 100));
+              const listRowHeight = Math.max(36, Math.min(300, (availableWidth * resolvedListColumnWidths.thumbnail) / 100));
               const rowHeight = isListView ? listRowHeight : itemWidth + ITEM_GAP;
               const headerHeight = 40;
 
@@ -2213,10 +2493,10 @@ export default function MainLibrary({
                   }
                 });
               } else {
-                for (let i = 0; i < imageList.length; i += columnCount) {
+                for (let i = 0; i < sortedImageList.length; i += columnCount) {
                   rows.push({
                     type: 'images',
-                    images: imageList.slice(i, i + columnCount),
+                    images: sortedImageList.slice(i, i + columnCount),
                     startIndex: i,
                   });
                 }
@@ -2238,6 +2518,7 @@ export default function MainLibrary({
                       containerRef={libraryContainerRef}
                       sortCriteria={sortCriteria}
                       onSortChange={handleHeaderSort}
+                      visibleColumns={visibleListColumns}
                     />
                   )}
                   <div
@@ -2291,6 +2572,7 @@ export default function MainLibrary({
                         gap: ITEM_GAP,
                         isListView,
                         columnWidths: listColumnWidths,
+                        visibleColumns: visibleListColumns,
                       }}
                     />
                   </div>
